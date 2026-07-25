@@ -12,9 +12,9 @@ export function MarketOddsBar({ poolA, poolB, fighterAName, fighterBName }: Mark
 
   return (
     <div className="w-full">
-      <div className="flex justify-between text-xs text-gray-400 mb-1">
-        <span>{fighterAName} {pctA}%</span>
-        <span>{pctB}% {fighterBName}</span>
+      <div className="flex justify-between text-xs text-gray-400 mb-1 gap-2">
+        <span className="min-w-0 truncate">{fighterAName} {pctA}%</span>
+        <span className="min-w-0 truncate text-right">{pctB}% {fighterBName}</span>
       </div>
       <div className="flex rounded-full overflow-hidden h-3">
         <div className="bg-blue-500 transition-all" style={{ width: `${pctA}%` }} />
