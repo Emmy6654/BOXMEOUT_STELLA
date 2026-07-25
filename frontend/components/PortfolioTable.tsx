@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { Bet, Market } from "@/lib/api";
 import { ClaimButton } from "./ClaimButton";
-import { useToast } from "@/hooks/useToast";
+import { useToast } from "@/components/ToastProvider";
 
 export interface PortfolioTableProps {
   bets: Bet[];
@@ -14,7 +15,7 @@ type SortKey = "fight" | "side" | "amount" | "status" | "payout";
 export function PortfolioTable({ bets, markets }: PortfolioTableProps): JSX.Element {
   const [sortKey, setSortKey] = useState<SortKey>("fight");
   const [asc, setAsc] = useState(true);
-  const { showToast } = useToast();
+  const { addToast: showToast } = useToast();
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setAsc((a) => !a);
@@ -25,7 +26,13 @@ export function PortfolioTable({ bets, markets }: PortfolioTableProps): JSX.Elem
     return (
       <div className="text-center py-16 text-gray-500">
         <p className="text-4xl mb-3">📋</p>
-        <p>No bets yet. Head to a market to place your first bet!</p>
+        <p className="mb-6">No bets yet. Head to a market to place your first bet!</p>
+        <Link
+          href="/"
+          className="inline-flex items-center px-4 py-2 rounded-md bg-amber-500 hover:bg-amber-400 text-black text-sm font-semibold transition-colors"
+        >
+          Browse markets
+        </Link>
       </div>
     );
   }
