@@ -1,3 +1,17 @@
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+
+/**
+ * The Stellar network this app is configured to operate against.
+ * Wallet network mismatches are detected by comparing against this passphrase.
+ */
+export const NETWORK_PASSPHRASE =
+  process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ?? "Test SDF Network ; September 2015";
+
+export const NETWORK_NAME = process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? "TESTNET";
+
+export const SOROBAN_RPC_URL =
+  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? "https://soroban-testnet.stellar.org";
+
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
 export interface SorobanInvokeParams {
@@ -25,7 +39,7 @@ export async function buildSorobanInvocation(
 ): Promise<string> {
   const { Contract, Operation, SorobanRpc, TransactionBuilder, Timeout } = await import("@stellar/stellar-sdk");
 
-  const server = new SorobanRpc.Server("https://soroban-testnet.stellar.org", {
+  const server = new SorobanRpc.Server(SOROBAN_RPC_URL, {
     allowHttp: true,
   });
 
@@ -56,7 +70,7 @@ export async function buildSorobanInvocation(
   const account = await server.getAccount(params.signerAddress);
 
   const transaction = new TransactionBuilder(params.signerAddress, {
-    networkPassphrase: "Test SDF Network ; September 2015",
+    networkPassphrase: NETWORK_PASSPHRASE,
     fee: "0",
   })
     .addOperation(operation)
@@ -84,11 +98,11 @@ export async function buildSorobanInvocation(
 export async function submitTransaction(signedXdr: string): Promise<TransactionResult> {
   const { SorobanRpc, Transaction } = await import("@stellar/stellar-sdk");
 
-  const server = new SorobanRpc.Server("https://soroban-testnet.stellar.org", {
+  const server = new SorobanRpc.Server(SOROBAN_RPC_URL, {
     allowHttp: true,
   });
 
-  const tx = Transaction.fromXDR(signedXdr, "Test SDF Network ; September 2015");
+  const tx = Transaction.fromXDR(signedXdr, NETWORK_PASSPHRASE);
 
   const hash = tx.hash();
 
