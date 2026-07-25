@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Navbar } from '@/components/Navbar';
 import { ToastProvider } from '@/components/ToastProvider';
 import { NetworkMismatchBanner } from '@/components/NetworkMismatchBanner';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import '@/app/globals.css';
 
 export const metadata: Metadata = {
@@ -17,13 +18,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ToastProvider>
-          <NetworkMismatchBanner />
-          <Navbar />
-          <main className="min-w-0 overflow-x-hidden">
-            {children}
-          </main>
-        </ToastProvider>
+        <ErrorBoundary>
+          <ToastProvider>
+            <NetworkMismatchBanner />
+            <Navbar />
+            <main className="min-w-0 overflow-x-hidden">
+              {children}
+            </main>
+          </ToastProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

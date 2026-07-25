@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useWallet } from "@/hooks/useWallet";
 import { useCreateMarket } from "@/hooks/useCreateMarket";
-import { useToastProvider } from "@/components/ToastProvider";
+import { useToast } from "@/components/ToastProvider";
 import { CreateMarketForm, CreateMarketFormData } from "@/components/CreateMarketForm";
 import { WalletConnectButton } from "@/components/WalletConnectButton";
 
@@ -11,7 +11,7 @@ export default function CreateMarketPage(): JSX.Element {
   const router = useRouter();
   const { isConnected } = useWallet();
   const { createMarket } = useCreateMarket();
-  const { addToast } = useToastProvider();
+  const { addToast } = useToast();
 
   if (!isConnected) {
     return (
