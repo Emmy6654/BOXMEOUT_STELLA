@@ -1,34 +1,18 @@
-const nextJest = require('next/jest')
+const nextJest = require("next/jest");
 
-module.exports = config;
-module.exports = {
+const createJestConfig = nextJest({ dir: "./" });
+
+/** @type {import('jest').Config} */
+const config = {
+  coverageProvider: "v8",
   testEnvironment: "jsdom",
-  setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },
-  testMatch: ["**/__tests__/**/*.test.ts", "**/__tests__/**/*.test.tsx"],
-  preset: "ts-jest",
-  globals: {
-    "ts-jest": {
-      tsconfig: {
-        target: "ES2020",
-        types: ["jest", "@testing-library/jest-dom"],
-      },
-    },
-  },
+  // Fixture modules live beside the tests that use them and must not run as suites
+  testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/.next/"],
+  testMatch: ["**/__tests__/**/*.test.[jt]s?(x)", "**/?(*.)+(spec|test).[jt]s?(x)"],
 };
-const createJestConfig = nextJest({
-  dir: './',
-})
 
-const config = {
-  coverageProvider: 'v8',
-  testEnvironment: 'jsdom',
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1',
-  },
-}
-
-module.exports = createJestConfig(config)
+module.exports = createJestConfig(config);

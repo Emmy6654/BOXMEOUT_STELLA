@@ -57,6 +57,51 @@ npm run dev
 # open http://localhost:3000
 ```
 
+## Testnet Quick Start
+
+Get the backend running against Stellar Testnet in under 30 minutes.
+
+### 1 — Create and fund a Testnet account
+
+```bash
+stellar keys generate --global admin --network testnet
+stellar keys fund admin --network testnet   # Friendbot credits 10,000 XLM
+```
+
+### 2 — Deploy smart contracts
+
+```bash
+cd contracts
+cargo build --release --target wasm32-unknown-unknown
+
+stellar contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/market_factory.wasm \
+  --source admin --network testnet
+# → copy the printed contract ID → MARKET_FACTORY_CONTRACT_ID
+
+stellar contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/treasury.wasm \
+  --source admin --network testnet
+# → copy the printed contract ID → TREASURY_CONTRACT_ID
+```
+
+### 3 — Configure, migrate, and run
+
+```bash
+cd backend
+cp .env.example .env
+# Edit .env: fill in DATABASE_URL, MARKET_FACTORY_CONTRACT_ID,
+#   TREASURY_CONTRACT_ID, and ADMIN_SECRET_KEY from the steps above.
+
+npm install
+npm run db:migrate
+npm run dev
+```
+
+Verify: `curl http://localhost:3001/health` → `{"status":"ok","db":"connected"}`
+
+For the full guide with troubleshooting, see [docs/backend-setup.md](docs/backend-setup.md).
+
 ## Contributing
 
 See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for coding standards, naming conventions, and how to pick and submit issues.

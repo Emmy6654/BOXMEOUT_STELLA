@@ -26,6 +26,17 @@ pub enum BetSide {
     FighterB,
 }
 
+/// Post-resolution outcome stored in Market. Pending until the market resolves.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub enum SettledOutcome {
+    Pending,
+    FighterA,
+    FighterB,
+    Draw,
+    NoContest,
+}
+
 #[contracttype]
 #[derive(Clone, Debug)]
 pub struct Fighter {
@@ -51,6 +62,11 @@ pub struct Market {
     pub total_pool: i128,
     pub protocol_fee_bp: u32,
     pub oracle_address: Address,
+    pub outcome: SettledOutcome,
+    pub outcome: Option<Outcome>,
+    pub fee_collector_address: Address,
+    pub resolved_at: u64,
+    pub dispute_window_sec: u64,
 }
 
 #[contracttype]
@@ -71,5 +87,35 @@ pub struct ClaimReceipt {
     pub bet_id: Bytes,
     pub bettor: Address,
     pub payout: i128,
+    pub claimed_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct ProtocolConfig {
+    pub admin: Address,
+    pub fee_collector: Address,
+    pub default_fee_bp: u32,
+    pub min_bet_amount: i128,
+    pub max_bet_amount: i128,
+    pub dispute_window_sec: u64,
+    pub paused: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MarketResolved {
+    pub market_id: Bytes,
+    pub outcome: Outcome,
+    pub resolved_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct WinningsClaimed {
+    pub bet_id: Bytes,
+    pub bettor: Address,
+    pub payout: i128,
+    pub fee_paid: i128,
     pub claimed_at: u64,
 }

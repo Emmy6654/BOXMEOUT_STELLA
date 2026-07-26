@@ -1,11 +1,12 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, ReactElement, cloneElement } from 'react';
+import { Toast, ToastType } from '@/components/Toast';
 
 interface Toast {
   id: string;
   message: string;
-  type: 'success' | 'error' | 'info';
+  type: Toast['type'];
 }
 
 interface ToastContextType {
@@ -22,7 +23,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const addToast = (message: string, type: Toast['type']) => {
     const id = Math.random().toString(36).substr(2, 9);
     setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => removeToast(id), 3000);
   };
 
   const removeToast = (id: string) => {
@@ -32,26 +32,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
       {children}
-      <div className="fixed bottom-4 right-4 space-y-2">
+      <div className="fixed bottom-4 right-4 space-y-2 z-50">
         {toasts.map(toast => (
-          <div
+          <Toast
             key={toast.id}
-            className={`px-4 py-2 rounded text-white ${
-              toast.type === 'success' ? 'bg-green-500' :
-              toast.type === 'error' ? 'bg-red-500' :
-              'bg-blue-500'
-            }`}
-          >
-            {toast.message}
-          </div>
+            toast={toast}
+            onDismiss={removeToast}
+          />
         ))}
       </div>
     </ToastContext.Provider>
   );
 }
 
-export function useToastProvider() {
+export function useToast() {
   const context = useContext(ToastContext);
-  if (!context) throw new Error('useToastProvider must be used within ToastProvider');
+  if (!context) throw new Error('useToast must be used within ToastProvider');
   return context;
 }

@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import { Bet, Market } from "@/lib/api";
+import { ClaimButton } from "./ClaimButton";
+import { useToast } from "@/hooks/useToast";
 
 export interface PortfolioTableProps {
   bets: Bet[];
@@ -12,6 +14,7 @@ type SortKey = "fight" | "side" | "amount" | "status" | "payout";
 export function PortfolioTable({ bets, markets }: PortfolioTableProps): JSX.Element {
   const [sortKey, setSortKey] = useState<SortKey>("fight");
   const [asc, setAsc] = useState(true);
+  const { showToast } = useToast();
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setAsc((a) => !a);
@@ -68,6 +71,7 @@ export function PortfolioTable({ bets, markets }: PortfolioTableProps): JSX.Elem
             <Th label="Amount" sk="amount" />
             <Th label="Status" sk="status" />
             <Th label="Payout" sk="payout" />
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">Action</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-700">
@@ -87,6 +91,13 @@ export function PortfolioTable({ bets, markets }: PortfolioTableProps): JSX.Elem
                   </span>
                 </td>
                 <td className="px-4 py-3 text-gray-300 whitespace-nowrap">{payout}</td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <ClaimButton
+                    bet={bet}
+                    market={m}
+                    onClaimed={() => showToast("Bet claimed successfully!", "success")}
+                  />
+                </td>
               </tr>
             );
           })}
