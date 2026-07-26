@@ -4,6 +4,443 @@ BOXMEOUT uses three Soroban contracts deployed on the Stellar network.
 
 ---
 
+## Prerequisites
+
+| Tool | Minimum Version | Install |
+|------|----------------|---------|
+| Rust | 1.75+ | [rustup.rs](https://rustup.rs) |
+| wasm32 target | — | `rustup target add wasm32-unknown-unknown` |
+| Stellar CLI (soroban) | 21.0+ | `cargo install --locked stellar-cli --features opt` |
+| clippy (optional) | — | `rustup component add clippy` |
+| rustfmt (optional) | — | `rustup component add rustfmt` |
+
+Verify your installation:
+```bash
+rustc --version          # rustc 1.75.0 (...)
+cargo --version          # cargo 1.75.0 (...)
+soroban --version        # soroban 21.x.x
+rustup target list --installed | grep wasm32
+# wasm32-unknown-unknown (installed)
+```
+
+For Testnet deployment, you also need a funded Stellar Testnet keypair:
+```bash
+stellar keys generate --global admin --network testnet
+stellar keys fund admin --network testnet
+# Friendbot credits 10,000 XLM to the account
+```
+
+---
+
+## Build
+
+Build all contracts for the wasm32 target in release mode:
+
+```bash
+cd contracts
+
+# Debug build (fast, for development)
+cargo build
+
+# Release build (optimized, for deployment)
+cargo build --release --target wasm32-unknown-unknown
+```
+
+Output WASM binaries are placed in `target/wasm32-unknown-unknown/release/`:
+```
+target/wasm32-unknown-unknown/release/
+├── market.wasm
+├── market_factory.wasm
+├── treasury.wasm
+└── shared.wasm (library, not deployed)
+```
+
+Optimize the WASM binaries before deployment (reduces size and gas cost):
+
+```bash
+soroban contract optimize \
+  --wasm target/wasm32-unknown-unknown/release/market.wasm \
+  --wasm-out target/wasm32-unknown-unknown/release/market.optimized.wasm
+
+soroban contract optimize \
+  --wasm target/wasm32-unknown-unknown/release/market_factory.wasm \
+  --wasm-out target/wasm32-unknown-unknown/release/market_factory.optimized.wasm
+
+soroban contract optimize \
+  --wasm target/wasm32-unknown-unknown/release/treasury.wasm \
+  --wasm-out target/wasm32-unknown-unknown/release/treasury.optimized.wasm
+```
+
+---
+
+## Test
+
+Run the full test suite:
+
+```bash
+cd contracts
+
+# Run all tests (all crates in workspace)
+cargo test
+
+# Run tests for a specific crate
+cargo test -p market
+cargo test -p market_factory
+cargo test -p treasury
+
+# Run with output (show println! / dbg!)
+cargo test -- --nocapture
+
+# Run a specific test by name
+cargo test -p market_factory -- test_initialize
+```
+
+### Lint and Format
+
+Before committing, run:
+
+```bash
+# Check formatting (no changes)
+cargo fmt --all -- --check
+
+# Auto-fix formatting
+cargo fmt --all
+
+# Lint with warnings treated as errors
+cargo clippy --all-targets -- -D warnings
+
+# Auto-fix clippy suggestions
+cargo clippy --fix --allow-dirty
+```
+
+---
+
+## Local Deploy (soroban-test-rpc)
+
+For local development without Testnet, use the `soroban-test-rpc` Docker image:
+
+```bash
+# Start a local Stellar test RPC node
+docker run -d -p 8000:8000 --name soroban-rpc \
+  stellar/soroban-rpc:latest \
+  --rpc-url https://soroban-testnet.stellar.org
+
+# Build and deploy locally
+cd contracts
+cargo build --release --target wasm32-unknown-unknown
+
+# Deploy MarketFactory
+soroban contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/market_factory.optimized.wasm \
+  --source admin \
+  --rpc-url http://localhost:8000 \
+  --network-passphrase "Standalone Network ; February 2017"
+```
+
+---
+
+## Testnet Deploy
+
+Use the provided deployment script or deploy manually:
+
+### Option A — Automated script
+
+```bash
+cd contracts/scripts
+ADMIN_SECRET=S... ./deploy_testnet.sh
+```
+
+This script builds, optimizes, deploys both `Treasury` and `MarketFactory`, initializes them, and saves the contract IDs to `.env.testnet`.
+
+### Option B — Manual deployment
+
+```bash
+cd contracts
+
+# 1. Build and optimize
+cargo build --release --target wasm32-unknown-unknown
+soroban contract optimize \
+  --wasm target/wasm32-unknown-unknown/release/market_factory.wasm \
+  --wasm-out target/wasm32-unknown-unknown/release/market_factory.optimized.wasm
+soroban contract optimize \
+  --wasm target/wasm32-unknown-unknown/release/treasury.wasm \
+  --wasm-out target/wasm32-unknown-unknown/release/treasury.optimized.wasm
+
+# 2. Deploy MarketFactory
+FACTORY_ID=$(soroban contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/market_factory.optimized.wasm \
+  --source admin \
+  --network testnet)
+echo "FACTORY_ID=$FACTORY_ID"
+
+# 3. Deploy Treasury
+TREASURY_ID=$(soroban contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/treasury.optimized.wasm \
+  --source admin \
+  --network testnet)
+echo "TREASURY_ID=$TREASURY_ID"
+
+# 4. Initialize Treasury
+ADMIN_PUBKEY=$(stellar keys address admin)
+soroban contract invoke \
+  --id "$TREASURY_ID" \
+  --source admin \
+  --network testnet \
+  -- initialize \
+  --admin "$ADMIN_PUBKEY" \
+  --factory "$FACTORY_ID"
+
+# 5. Initialize MarketFactory
+soroban contract invoke \
+  --id "$FACTORY_ID" \
+  --source admin \
+  --network testnet \
+  -- initialize \
+  --admin "$ADMIN_PUBKEY" \
+  --fee-collector "$TREASURY_ID" \
+  --default-fee-bp 200 \
+  --min-bet 1000000 \
+  --max-bet 100000000000
+```
+
+---
+
+## CLI Invocation Examples
+
+Below are `soroban contract invoke` examples for every contract function against Testnet.
+Replace `$FACTORY_ID`, `$TREASURY_ID`, and `$MARKET_ID` with actual contract IDs.
+
+### MarketFactory
+
+```bash
+# ── Initialize (one-time setup) ────────────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --source admin --network testnet \
+  -- initialize \
+  --admin "$(stellar keys address admin)" \
+  --fee-collector "$TREASURY_ID" \
+  --default-fee-bp 200 \
+  --min-bet 1000000 \
+  --max-bet 100000000000
+
+# ── Create a market ────────────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --source admin --network testnet \
+  -- create_market \
+  --caller "$(stellar keys address admin)" \
+  --fighter-a "Canelo Alvarez" \
+  --fighter-b "Jermell Charlo" \
+  --scheduled-at "1720000000" \
+  --betting-ends-at "1719900000" \
+  --oracle "$(stellar keys address oracle)"
+# Returns: market_id (Bytes/hex)
+
+# ── Read: get_market_address ───────────────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --network testnet \
+  -- get_market_address \
+  --market-id "$MARKET_ID"
+# Returns: market contract address (C...)
+
+# ── Read: get_all_markets ──────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --network testnet \
+  -- get_all_markets
+# Returns: Vec<Bytes> of all market IDs
+
+# ── Read: get_markets_paginated ────────────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --network testnet \
+  -- get_markets_paginated \
+  --offset 0 --limit 10
+
+# ── Read: get_config ───────────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --network testnet \
+  -- get_config
+
+# ── Read: get_market_count ─────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --network testnet \
+  -- get_market_count
+
+# ── Admin: update_config ───────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --source admin --network testnet \
+  -- update_config \
+  --admin "$(stellar keys address admin)" \
+  --new-config '{...}'
+
+# ── Admin: pause_protocol ──────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --source admin --network testnet \
+  -- pause_protocol \
+  --admin "$(stellar keys address admin)"
+
+# ── Admin: unpause_protocol ────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --source admin --network testnet \
+  -- unpause_protocol \
+  --admin "$(stellar keys address admin)"
+
+# ── Admin: transfer_admin (step 1 of 2) ────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --source admin --network testnet \
+  -- transfer_admin \
+  --admin "$(stellar keys address admin)" \
+  --new-admin "G..."
+
+# ── New admin: accept_admin (step 2 of 2) ──────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --source new-admin --network testnet \
+  -- accept_admin \
+  --new-admin "$(stellar keys address new-admin)"
+
+# ── Admin: add_oracle ──────────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --source admin --network testnet \
+  -- add_oracle \
+  --admin "$(stellar keys address admin)" \
+  --oracle "G..."
+
+# ── Admin: remove_oracle ───────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --source admin --network testnet \
+  -- remove_oracle \
+  --admin "$(stellar keys address admin)" \
+  --oracle "G..."
+
+# ── Read: get_oracles ──────────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$FACTORY_ID" --network testnet \
+  -- get_oracles
+```
+
+### Market
+
+```bash
+# Replace $MARKET_ADDRESS with the deployed Market contract ID
+
+# ── place_bet ──────────────────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$MARKET_ADDRESS" --source bettor --network testnet \
+  -- place_bet \
+  --bettor "$(stellar keys address bettor)" \
+  --side FighterA \
+  --amount 10000000
+# Returns: bet_id (Bytes/hex)
+
+# ── lock_market ────────────────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$MARKET_ADDRESS" --source oracle --network testnet \
+  -- lock_market \
+  --oracle "$(stellar keys address oracle)"
+
+# ── resolve_market ─────────────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$MARKET_ADDRESS" --source oracle --network testnet \
+  -- resolve_market \
+  --oracle "$(stellar keys address oracle)" \
+  --outcome FighterA
+
+# ── claim_winnings ─────────────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$MARKET_ADDRESS" --source bettor --network testnet \
+  -- claim_winnings \
+  --bettor "$(stellar keys address bettor)" \
+  --bet-id "$BET_ID"
+# Returns: payout amount (i128, in stroops)
+
+# ── claim_refund (Cancelled/NoContest markets) ──────────────────────────────
+soroban contract invoke \
+  --id "$MARKET_ADDRESS" --source bettor --network testnet \
+  -- claim_refund \
+  --bettor "$(stellar keys address bettor)" \
+  --bet-id "$BET_ID"
+# Returns: refund amount (i128, in stroops)
+
+# ── raise_dispute ──────────────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$MARKET_ADDRESS" --source bettor --network testnet \
+  -- raise_dispute \
+  --bettor "$(stellar keys address bettor)" \
+  --reason "oracle_conflict"
+
+# ── resolve_dispute ────────────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$MARKET_ADDRESS" --source admin --network testnet \
+  -- resolve_dispute \
+  --admin "$(stellar keys address admin)" \
+  --override-outcome FighterB
+
+# ── Read: get_market_info ──────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$MARKET_ADDRESS" --network testnet \
+  -- get_market_info
+
+# ── Read: get_bet ──────────────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$MARKET_ADDRESS" --network testnet \
+  -- get_bet --bet-id "$BET_ID"
+
+# ── Read: get_bets_by_address ──────────────────────────────────────────────
+soroban contract invoke \
+  --id "$MARKET_ADDRESS" --network testnet \
+  -- get_bets_by_address \
+  --bettor "$(stellar keys address bettor)"
+
+# ── Read: calculate_payout (estimate only) ──────────────────────────────────
+soroban contract invoke \
+  --id "$MARKET_ADDRESS" --network testnet \
+  -- calculate_payout --bet-id "$BET_ID"
+
+# ── Read: get_pool_odds ────────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$MARKET_ADDRESS" --network testnet \
+  -- get_pool_odds
+```
+
+### Treasury
+
+```bash
+# ── Initialize (one-time) ──────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$TREASURY_ID" --source admin --network testnet \
+  -- initialize \
+  --admin "$(stellar keys address admin)" \
+  --factory "$FACTORY_ID"
+
+# ── Admin: withdraw_fees ───────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$TREASURY_ID" --source admin --network testnet \
+  -- withdraw_fees \
+  --token "$(stellar keys address admin)" \
+  --amount 100000000000 \
+  --destination "G..."
+
+# ── Admin: emergency_drain (only when protocol paused) ──────────────────────
+soroban contract invoke \
+  --id "$TREASURY_ID" --source admin --network testnet \
+  -- emergency_drain
+
+# ── Read: get_balance ──────────────────────────────────────────────────────
+soroban contract invoke \
+  --id "$TREASURY_ID" --network testnet \
+  -- get_balance
+
+# ── Read: get_total_fees_earned ────────────────────────────────────────────
+soroban contract invoke \
+  --id "$TREASURY_ID" --network testnet \
+  -- get_total_fees_earned
+
+# ── Read: get_withdrawal_log ───────────────────────────────────────────────
+soroban contract invoke \
+  --id "$TREASURY_ID" --network testnet \
+  -- get_withdrawal_log
+```
+
+---
+
 ## Contracts
 
 | Contract | File | Purpose |
