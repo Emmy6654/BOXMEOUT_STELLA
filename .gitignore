@@ -29,14 +29,25 @@ Thumbs.db
 coverage/
 .nyc_output/
 
-# Test snapshots
+# Test snapshots — never commit auto-generated snapshots
 **/__snapshots__/
 *.snap
 
-# Jest cache
+# Jest / Vitest cache
 .jest-cache/
 jest_0/
 .jest/
+.vitest/
+vitest.cache/
+
+# Vitest coverage
+coverage/
+.c8/
+html/
+
+# Storybook caches and output
+.storybook-cache/
+storybook-static/
 
 # TypeScript build info
 *.tsbuildinfo
@@ -90,3 +101,15 @@ yarn.lock
 pnpm-lock.yaml
 
 # Cargo lock is intentionally kept for contracts
+
+# ─── Miscellaneous dev tools ─────────────────────────────────
+# Turbo cache
+.turbo/
+
+# Next.js telemetry
+.next/telemetry/
+
+# Local test results / reports
+test-results/
+playwright-report/
+*.lcov
