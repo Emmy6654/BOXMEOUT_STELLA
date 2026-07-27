@@ -10,6 +10,20 @@ import {
   Transaction,
 } from "@stellar/stellar-sdk";
 
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+
+/**
+ * The Stellar network this app is configured to operate against.
+ * Wallet network mismatches are detected by comparing against this passphrase.
+ */
+export const NETWORK_PASSPHRASE =
+  process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ?? "Test SDF Network ; September 2015";
+
+export const NETWORK_NAME = process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? "TESTNET";
+
+export const SOROBAN_RPC_URL =
+  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? "https://soroban-testnet.stellar.org";
+
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
 export interface SorobanInvokeParams {
@@ -35,7 +49,7 @@ export interface TransactionResult {
 export async function buildSorobanInvocation(
   params: SorobanInvokeParams
 ): Promise<string> {
-  const server = new SorobanRpc.Server("https://soroban-testnet.stellar.org", {
+  const server = new SorobanRpc.Server(SOROBAN_RPC_URL, {
     allowHttp: true,
   });
 
@@ -64,7 +78,7 @@ export async function buildSorobanInvocation(
   const account = await server.getAccount(params.signerAddress);
 
   const transaction = new TransactionBuilder(account, {
-    networkPassphrase: "Test SDF Network ; September 2015",
+    networkPassphrase: NETWORK_PASSPHRASE,
     fee: "0",
   });
 
@@ -80,7 +94,7 @@ export async function buildSorobanInvocation(
     const preparedTx = SorobanRpc.assembleTransaction(tx, simResult);
 
     const withFee = new TransactionBuilder(account, {
-      networkPassphrase: "Test SDF Network ; September 2015",
+      networkPassphrase: NETWORK_PASSPHRASE,
       fee: fee,
     });
 
@@ -100,16 +114,14 @@ export async function buildSorobanInvocation(
  * Submits a signed XDR transaction to Soroban RPC and waits for ledger confirmation.
  * Returns the TransactionResult containing txHash, ledger, and return value.
  */
-export async function submitTransaction(
-  signedXdr: string
-): Promise<TransactionResult> {
-  const server = new SorobanRpc.Server("https://soroban-testnet.stellar.org", {
+export async function submitTransaction(signedXdr: string): Promise<TransactionResult> {
+  const server = new SorobanRpc.Server(SOROBAN_RPC_URL, {
     allowHttp: true,
   });
 
   const transaction = TransactionBuilder.fromXDR(
     signedXdr,
-    "Test SDF Network ; September 2015"
+    NETWORK_PASSPHRASE
   ) as Transaction;
 
   const response = await server.sendTransaction(transaction);
