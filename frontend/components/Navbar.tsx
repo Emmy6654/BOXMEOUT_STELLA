@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { WalletConnectButton } from "./WalletConnectButton";
+import { useTheme } from "@/hooks/useTheme";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -13,6 +14,7 @@ const NAV_LINKS = [
 export function Navbar() {
   const [open, setOpen] = useState(false);
   const [, setWalletAddress] = useState<string | null>(null);
+  const { theme, toggleTheme } = useTheme();
 
   const handleWalletConnected = useCallback((address: string) => {
     setWalletAddress(address);
@@ -38,6 +40,15 @@ export function Navbar() {
               </Link>
             </li>
           ))}
+          <li>
+            <button
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              className="w-9 h-9 flex items-center justify-center rounded-md text-gray-300 hover:text-white hover:bg-gray-800"
+            >
+              {theme === "dark" ? "☀️" : "🌙"}
+            </button>
+          </li>
         </ul>
 
         {/* Desktop: WalletConnectButton slot */}
