@@ -7,6 +7,8 @@ import {
   fetchPortfolioSummary,
   fetchPayoutEstimate,
   fetchOddsHistory,
+  fetchUserPositions,
+  createMarketMeta,
   ApiError,
   Market,
   Bet,
@@ -151,6 +153,8 @@ test("fetchMarketStats: returns stats", async () => {
 
 // ─── fetchMarketBets ──────────────────────────────────────────────────────────
 
+// ─── fetchMarketBets ──────────────────────────────────────────────────────────
+
 test("fetchMarketBets: returns bets array", async () => {
   global.fetch = mockOk([BET]);
   const result = await fetchMarketBets("mkt-1");
@@ -159,6 +163,13 @@ test("fetchMarketBets: returns bets array", async () => {
     expect.stringContaining("/api/markets/mkt-1/bets"),
     expect.any(Object)
   );
+});
+
+test("fetchMarketBets: passes outcome filter query param", async () => {
+  global.fetch = mockOk([BET]);
+  await fetchMarketBets("mkt-1", { outcome: "FighterA" });
+  const url = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+  expect(url).toContain("outcome=FighterA");
 });
 
 // ─── fetchBetsByAddress ───────────────────────────────────────────────────────
@@ -228,4 +239,52 @@ test("ApiError: has correct name and status", () => {
   expect(err.status).toBe(422);
   expect(err.message).toBe("Unprocessable");
   expect(err).toBeInstanceOf(Error);
+});
+
+// ─── fetchUserPositions ───────────────────────────────────────────────────────
+
+test("fetchUserPositions: returns positions array", async () => {
+  const position = {
+    marketId: "mkt-1",
+    side: "FighterA",
+    amount: "10000000",
+    avgOdds: 1.5,
+    open: true,
+  };
+  global.fetch = mockOk([position]);
+  const result = await fetchUserPositions("GADDR1");
+  expect(result).toEqual([position]);
+  expect(global.fetch).toHaveBeenCalledWith(
+    expect.stringContaining("/api/users/GADDR1/positions"),
+    expect.any(Object)
+  );
+});
+
+// ─── createMarketMeta ─────────────────────────────────────────────────────────
+
+test("createMarketMeta: sends POST request with market metadata", async () => {
+  const input = {
+    txHash: "tx123",
+    fighterAName: "Ali",
+    fighterARecord: "20-0",
+    fighterANationality: "USA",
+    fighterAWeightClass: "HW",
+    fighterBName: "Foreman",
+    fighterBRecord: "18-2",
+    fighterBNationality: "USA",
+    fighterBWeightClass: "HW",
+    scheduledAt: "2026-07-01T20:00:00Z",
+    bettingEndsAt: "2026-07-01T19:00:00Z",
+    oracleAddress: "GORACLE",
+  };
+  global.fetch = mockOk({ success: true, marketId: "mkt-1" });
+  const result = await createMarketMeta(input);
+  expect(result).toEqual({ success: true, marketId: "mkt-1" });
+  expect(global.fetch).toHaveBeenCalledWith(
+    expect.stringContaining("/api/markets"),
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify(input),
+    })
+  );
 });

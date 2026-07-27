@@ -105,3 +105,21 @@ test("error path: throws when wallet not connected", async () => {
     await expect(result.current.createMarket(FORM_DATA)).rejects.toThrow("Wallet not connected");
   });
 });
+
+test("error path: throws when wallet network is mismatched", async () => {
+  (useWallet as jest.Mock).mockReturnValue({
+    address: "GUSER123",
+    isNetworkMismatched: true,
+    signTransaction: jest.fn(),
+  });
+
+  const { result } = renderHook(() => useCreateMarket());
+
+  await act(async () => {
+    await expect(result.current.createMarket(FORM_DATA)).rejects.toThrow(
+      "Wallet is connected to the wrong network"
+    );
+  });
+
+  expect(stellar.buildSorobanInvocation).not.toHaveBeenCalled();
+});

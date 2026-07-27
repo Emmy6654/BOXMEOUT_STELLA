@@ -1,6 +1,9 @@
 import * as api from "@/lib/api";
 import type { Bet, Market, PortfolioSummary } from "@/lib/api";
 
+// Re-export Bet so hook tests can import the fixture type from one place.
+export type { Bet };
+
 /**
  * Shared fixtures and typed handles for the mocked `@/lib/api` client.
  * Each hook test file calls `jest.mock("@/lib/api")` itself, since jest.mock is
@@ -38,6 +41,13 @@ export const BET: Bet = {
   payout: null,
 };
 
+/** An older bet — used to verify most-recent-first sort in useMarketBets. */
+export const OLDER_BET: Bet = {
+  ...BET,
+  id: "bet-0",
+  placedAt: "2026-06-10T08:00:00Z",
+};
+
 export const SUMMARY: PortfolioSummary = {
   totalStaked: "100000000",
   totalWinnings: "0",
@@ -51,6 +61,7 @@ export const SUMMARY: PortfolioSummary = {
 
 export const mockFetchMarkets = api.fetchMarkets as jest.MockedFunction<typeof api.fetchMarkets>;
 export const mockFetchMarketById = api.fetchMarketById as jest.MockedFunction<typeof api.fetchMarketById>;
+export const mockFetchMarketBets = api.fetchMarketBets as jest.MockedFunction<typeof api.fetchMarketBets>;
 export const mockFetchBetsByAddress = api.fetchBetsByAddress as jest.MockedFunction<typeof api.fetchBetsByAddress>;
 export const mockFetchPortfolioSummary = api.fetchPortfolioSummary as jest.MockedFunction<typeof api.fetchPortfolioSummary>;
 
