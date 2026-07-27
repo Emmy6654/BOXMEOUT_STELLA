@@ -26,11 +26,14 @@ export interface UseClaimWinningsResult {
 export function useClaimWinnings(): UseClaimWinningsResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const { address, signTransaction } = useWallet();
+  const { address, signTransaction, isNetworkMismatched } = useWallet();
 
   const claim = async (bet_id: string, market_id: string): Promise<ClaimReceipt> => {
     if (!address) {
       throw new Error("Wallet not connected");
+    }
+    if (isNetworkMismatched) {
+      throw new Error("Wallet is connected to the wrong network");
     }
 
     setIsLoading(true);

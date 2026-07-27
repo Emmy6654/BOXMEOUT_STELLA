@@ -1,10 +1,12 @@
 "use client";
 import { useState } from "react";
 import { useMarket } from "@/hooks/useMarket";
+import { useMarketBets } from "@/hooks/useMarketBets";
+import { useMarketEvents } from "@/hooks/useMarketEvents";
 import { Market, Bet } from "@/lib/api";
 import { FighterCard } from "@/components/FighterCard";
-import { BettingInterface } from "@/components/BettingInterface";
-import { MarketOddsBar } from "@/components/MarketOddsBar";
+import { BetForm } from "@/components/BetForm";
+import { OutcomeChart } from "@/components/OutcomeChart";
 import { MarketOddsChart } from "@/components/MarketOddsChart";
 import { MarketStatusBadge } from "@/components/MarketStatusBadge";
 import { CountdownTimer } from "@/components/CountdownTimer";
@@ -47,15 +49,22 @@ export function MarketDetailClient({
   initialOddsHistory,
 }: MarketDetailClientProps): JSX.Element {
   const { market } = useMarket(marketId);
-  const [bets, setBets] = useState<Bet[]>(initialBets);
+  const { bets: liveBets } = useMarketBets(marketId);
+  const { poolA: livePoolA, poolB: livePoolB } = useMarketEvents(marketId);
+  const [justPlaced, setJustPlaced] = useState<Bet[]>([]);
   const [showDispute, setShowDispute] = useState(false);
 
   // Use live polled data once available, fall back to SSR initial data
   const m = market ?? initialMarket;
   const oddsHistory = initialOddsHistory;
 
-  const poolA = BigInt(m.poolA);
-  const poolB = BigInt(m.poolB);
+  const polledBets = liveBets.length ? liveBets : initialBets;
+  // Show a bet placed this session immediately, ahead of the next bet-list poll
+  const bets = [...justPlaced.filter((b) => !polledBets.some((pb) => pb.id === b.id)), ...polledBets];
+
+  // useMarketEvents drives live pool totals; fall back to the polled market until the first event lands
+  const poolA = livePoolA ?? BigInt(m.poolA);
+  const poolB = livePoolB ?? BigInt(m.poolB);
   const total = poolA + poolB;
   const oddsA = total === BigInt(0) ? 50 : Number((poolA * BigInt(100)) / total);
   const oddsB = 100 - oddsA;
@@ -73,6 +82,7 @@ export function MarketDetailClient({
       <CountdownTimer
         targetTimestamp={Math.floor(new Date(m.bettingEndsAt).getTime() / 1000)}
         label="Betting closes in"
+        expiredLabel="Locked"
       />
 
       {/* Fighter cards */}
@@ -81,18 +91,18 @@ export function MarketDetailClient({
         <FighterCard fighter={m.fighterB} side="B" poolAmount={poolB} impliedOdds={oddsB} />
       </div>
 
-      <MarketOddsBar
+      <OutcomeChart
         poolA={poolA}
         poolB={poolB}
-        fighterAName={m.fighterA.name}
-        fighterBName={m.fighterB.name}
+        labelA={m.fighterA.name}
+        labelB={m.fighterB.name}
       />
 
       <MarketOddsChart marketId={marketId} historicalOdds={oddsHistory} />
 
-      <BettingInterface
+      <BetForm
         market={m}
-        onBetPlaced={(bet) => setBets((prev) => [bet, ...prev])}
+        onBetPlaced={(bet) => setJustPlaced((prev) => [bet, ...prev])}
       />
 
       {/* Bet history */}

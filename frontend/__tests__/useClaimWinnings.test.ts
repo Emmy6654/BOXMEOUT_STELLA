@@ -1,5 +1,4 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { useClaimWinnings } from "@/hooks/useClaimWinnings";
 import { useClaimWinnings, ClaimReceipt } from "@/hooks/useClaimWinnings";
 import { useWallet } from "@/hooks/useWallet";
 import * as stellar from "@/lib/stellar";
@@ -15,12 +14,6 @@ const mockSubmitTransaction = stellar.submitTransaction as jest.Mock;
 const mockDecodeScVal = stellar.decodeScVal as jest.Mock;
 const mockFetchMarketById = api.fetchMarketById as jest.Mock;
 const mockFetchMarketBets = api.fetchMarketBets as jest.Mock;
-const mockUseWallet = useWallet as any;
-const mockBuildSorobanInvocation = stellar.buildSorobanInvocation as any;
-const mockSubmitTransaction = stellar.submitTransaction as any;
-const mockDecodeScVal = stellar.decodeScVal as any;
-const mockFetchMarketById = api.fetchMarketById as any;
-const mockFetchMarketBets = api.fetchMarketBets as any;
 
 describe("useClaimWinnings", () => {
   const mockAddress = "GADDR1234567890ABCDEF";
@@ -89,6 +82,27 @@ describe("useClaimWinnings", () => {
         await result.current.claim("bet-1", "market-1");
       })
     ).rejects.toThrow("Wallet not connected");
+  });
+
+  it("throws error when wallet network is mismatched", async () => {
+    mockUseWallet.mockReturnValueOnce({
+      address: mockAddress,
+      isConnected: true,
+      isNetworkMismatched: true,
+      connect: jest.fn(),
+      disconnect: jest.fn(),
+      signTransaction: jest.fn(),
+    });
+
+    const { result } = renderHook(() => useClaimWinnings());
+
+    await expect(
+      act(async () => {
+        await result.current.claim("bet-1", "market-1");
+      })
+    ).rejects.toThrow("Wallet is connected to the wrong network");
+
+    expect(mockFetchMarketById).not.toHaveBeenCalled();
   });
 
   it("calls claim_winnings for Resolved markets", async () => {
