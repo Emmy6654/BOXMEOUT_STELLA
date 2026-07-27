@@ -8,8 +8,17 @@ export interface MarketFilters {
 
 export interface Pagination {
   page: number;
-  limit: number;
+  pageSize: number;
 }
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export const MAX_PAGE_SIZE = 100;
 
 export interface MarketStats {
   totalBets: number;
@@ -118,7 +127,7 @@ export async function updateMarketStatus(
     data: {
       status,
       ...(outcome !== undefined && { outcome }),
-      ...(status === MarketStatus.Resolved && { resolvedAt: new Date() }),
+      ...(status === "Resolved" && { resolvedAt: new Date() }),
     },
   });
 }
