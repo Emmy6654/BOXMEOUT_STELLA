@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Market, MarketStatus } from "@/lib/api";
 import MarketCard from "./MarketCard";
 import { LoadingSkeleton } from "./LoadingSkeleton";
@@ -42,13 +43,15 @@ export function MarketList({ markets, isLoading, filter }: MarketListProps): JSX
       : "No markets available yet. Be the first to create one!";
 
     return (
-      <div
-        role="status"
-        aria-label="No markets found"
-        className="text-center py-16 text-gray-500"
-      >
-        <p className="text-4xl mb-3" aria-hidden="true">{icon}</p>
-        <p className="text-base">{message}</p>
+      <div className="text-center py-16 text-gray-500">
+        <p className="text-4xl mb-3">🥊</p>
+        <p className="mb-6">No {filter?.toLowerCase() ?? "active"} markets yet.</p>
+        <Link
+          href="/create"
+          className="inline-flex items-center px-4 py-2 rounded-md bg-amber-500 hover:bg-amber-400 text-black text-sm font-semibold transition-colors"
+        >
+          Create the first market
+        </Link>
       </div>
     );
   }
