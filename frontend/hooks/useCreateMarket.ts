@@ -18,11 +18,14 @@ export interface UseCreateMarketResult {
 export function useCreateMarket(): UseCreateMarketResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const { address, signTransaction } = useWallet();
+  const { address, signTransaction, isNetworkMismatched } = useWallet();
 
   const createMarket = async (data: CreateMarketFormData): Promise<string> => {
     if (!address) {
       throw new Error("Wallet not connected");
+    }
+    if (isNetworkMismatched) {
+      throw new Error("Wallet is connected to the wrong network");
     }
 
     setIsLoading(true);

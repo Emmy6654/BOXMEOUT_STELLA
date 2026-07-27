@@ -4,17 +4,18 @@ import { useEffect, useState } from "react";
 export interface CountdownTimerProps {
   targetTimestamp: number;
   label: string;
+  /** Text shown once the target timestamp has passed. Defaults to "Ended". */
+  expiredLabel?: string;
 }
 
 function formatRemaining(seconds: number): string {
-  if (seconds <= 0) return "LIVE";
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export function CountdownTimer({ targetTimestamp, label }: CountdownTimerProps): JSX.Element {
+export function CountdownTimer({ targetTimestamp, label, expiredLabel = "Ended" }: CountdownTimerProps): JSX.Element {
   const [remaining, setRemaining] = useState(() =>
     Math.max(0, targetTimestamp - Math.floor(Date.now() / 1000))
   );
@@ -28,14 +29,14 @@ export function CountdownTimer({ targetTimestamp, label }: CountdownTimerProps):
     return () => clearInterval(id);
   }, [targetTimestamp]);
 
-  const display = formatRemaining(remaining);
+  const isExpired = remaining <= 0;
 
   return (
-    <span className="text-sm text-gray-400">
-      {display === "LIVE" ? (
-        <span className="text-green-400 font-semibold">LIVE</span>
+    <span className="text-sm text-gray-400" role="status" aria-live="polite">
+      {isExpired ? (
+        <span className="text-red-400 font-semibold">{expiredLabel}</span>
       ) : (
-        <>{label}: <span className="font-mono text-white">{display}</span></>
+        <>{label}: <span className="font-mono text-white">{formatRemaining(remaining)}</span></>
       )}
     </span>
   );

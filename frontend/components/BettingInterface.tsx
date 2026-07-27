@@ -3,7 +3,7 @@ import { useId, useState } from "react";
 import { Bet, BetSide, Market } from "@/lib/api";
 import { BetAmountInput } from "./BetAmountInput";
 import { usePlaceBet } from "@/hooks/usePlaceBet";
-import { useToast } from "@/hooks/useToast";
+import { useToast } from "@/components/ToastProvider";
 
 export interface BettingInterfaceProps {
   market: Market;
@@ -16,7 +16,7 @@ export function BettingInterface({ market, onBetPlaced }: BettingInterfaceProps)
   const [side, setSide] = useState<BetSide | null>(null);
   const [amount, setAmount] = useState<string>("");
   const { placeBet, isLoading } = usePlaceBet(market.id);
-  const { showToast } = useToast();
+  const { addToast: showToast } = useToast();
 
   const marketClosed = market.status !== "Open";
   // All controls disabled while market is closed OR a tx is in-flight
