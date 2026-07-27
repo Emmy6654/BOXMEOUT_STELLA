@@ -71,11 +71,24 @@ function validate(data: CreateMarketFormData): FormErrors {
 
   if (!data.fighterBWeightClass.trim()) errors.fighterBWeightClass = "Required";
 
-  if (!data.scheduledAt) errors.scheduledAt = "Required";
+  const now = new Date();
 
-  if (!data.bettingEndsAt) errors.bettingEndsAt = "Required";
-  else if (data.scheduledAt && new Date(data.bettingEndsAt) >= new Date(data.scheduledAt)) {
-    errors.bettingEndsAt = "Must be before fight time";
+  if (!data.scheduledAt) {
+    errors.scheduledAt = "Required";
+  }
+
+  if (!data.bettingEndsAt) {
+    errors.bettingEndsAt = "Required";
+  } else {
+    const lockTime = new Date(data.bettingEndsAt);
+    if (lockTime <= now) {
+      errors.bettingEndsAt = "Must be in the future";
+    } else if (data.scheduledAt) {
+      const endTime = new Date(data.scheduledAt);
+      if (endTime <= lockTime) {
+        errors.bettingEndsAt = "Must be before fight time";
+      }
+    }
   }
 
   if (!data.oracleAddress.trim()) errors.oracleAddress = "Required";
@@ -132,18 +145,20 @@ function Field({
 
 export function CreateMarketForm({ onSubmit }: CreateMarketFormProps): JSX.Element {
   const [formData, setFormData] = useState<CreateMarketFormData>(INITIAL);
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
+
+  const errors = validate(formData);
+  const isValid = !hasErrors(errors);
 
   function set<K extends keyof CreateMarketFormData>(key: K, value: CreateMarketFormData[K]) {
     setFormData((prev) => ({ ...prev, [key]: value }));
+    setTouched((prev) => ({ ...prev, [key]: true }));
   }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    const validationErrors = validate(formData);
-    setErrors(validationErrors);
-    if (hasErrors(validationErrors)) return;
+    if (!isValid) return;
     setSubmitting(true);
     try {
       await onSubmit(formData);
@@ -160,19 +175,19 @@ export function CreateMarketForm({ onSubmit }: CreateMarketFormProps): JSX.Eleme
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="fighterAName">Name</Label>
-            <Field id="fighterAName" value={formData.fighterAName} error={errors.fighterAName} placeholder="e.g. Muhammad Ali" onChange={(v) => set("fighterAName", v)} />
+            <Field id="fighterAName" value={formData.fighterAName} error={touched.fighterAName ? errors.fighterAName : undefined} placeholder="e.g. Muhammad Ali" onChange={(v) => set("fighterAName", v)} />
           </div>
           <div>
             <Label htmlFor="fighterARecord">Record</Label>
-            <Field id="fighterARecord" value={formData.fighterARecord} error={errors.fighterARecord} placeholder="e.g. 56-5" onChange={(v) => set("fighterARecord", v)} />
+            <Field id="fighterARecord" value={formData.fighterARecord} error={touched.fighterARecord ? errors.fighterARecord : undefined} placeholder="e.g. 56-5" onChange={(v) => set("fighterARecord", v)} />
           </div>
           <div>
             <Label htmlFor="fighterANationality">Nationality</Label>
-            <Field id="fighterANationality" value={formData.fighterANationality} error={errors.fighterANationality} placeholder="e.g. USA" onChange={(v) => set("fighterANationality", v)} />
+            <Field id="fighterANationality" value={formData.fighterANationality} error={touched.fighterANationality ? errors.fighterANationality : undefined} placeholder="e.g. USA" onChange={(v) => set("fighterANationality", v)} />
           </div>
           <div>
             <Label htmlFor="fighterAWeightClass">Weight Class</Label>
-            <Field id="fighterAWeightClass" value={formData.fighterAWeightClass} error={errors.fighterAWeightClass} placeholder="e.g. Heavyweight" onChange={(v) => set("fighterAWeightClass", v)} />
+            <Field id="fighterAWeightClass" value={formData.fighterAWeightClass} error={touched.fighterAWeightClass ? errors.fighterAWeightClass : undefined} placeholder="e.g. Heavyweight" onChange={(v) => set("fighterAWeightClass", v)} />
           </div>
         </div>
       </fieldset>
@@ -183,19 +198,19 @@ export function CreateMarketForm({ onSubmit }: CreateMarketFormProps): JSX.Eleme
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="fighterBName">Name</Label>
-            <Field id="fighterBName" value={formData.fighterBName} error={errors.fighterBName} placeholder="e.g. Joe Frazier" onChange={(v) => set("fighterBName", v)} />
+            <Field id="fighterBName" value={formData.fighterBName} error={touched.fighterBName ? errors.fighterBName : undefined} placeholder="e.g. Joe Frazier" onChange={(v) => set("fighterBName", v)} />
           </div>
           <div>
             <Label htmlFor="fighterBRecord">Record</Label>
-            <Field id="fighterBRecord" value={formData.fighterBRecord} error={errors.fighterBRecord} placeholder="e.g. 32-4" onChange={(v) => set("fighterBRecord", v)} />
+            <Field id="fighterBRecord" value={formData.fighterBRecord} error={touched.fighterBRecord ? errors.fighterBRecord : undefined} placeholder="e.g. 32-4" onChange={(v) => set("fighterBRecord", v)} />
           </div>
           <div>
             <Label htmlFor="fighterBNationality">Nationality</Label>
-            <Field id="fighterBNationality" value={formData.fighterBNationality} error={errors.fighterBNationality} placeholder="e.g. USA" onChange={(v) => set("fighterBNationality", v)} />
+            <Field id="fighterBNationality" value={formData.fighterBNationality} error={touched.fighterBNationality ? errors.fighterBNationality : undefined} placeholder="e.g. USA" onChange={(v) => set("fighterBNationality", v)} />
           </div>
           <div>
             <Label htmlFor="fighterBWeightClass">Weight Class</Label>
-            <Field id="fighterBWeightClass" value={formData.fighterBWeightClass} error={errors.fighterBWeightClass} placeholder="e.g. Heavyweight" onChange={(v) => set("fighterBWeightClass", v)} />
+            <Field id="fighterBWeightClass" value={formData.fighterBWeightClass} error={touched.fighterBWeightClass ? errors.fighterBWeightClass : undefined} placeholder="e.g. Heavyweight" onChange={(v) => set("fighterBWeightClass", v)} />
           </div>
         </div>
       </fieldset>
@@ -206,22 +221,22 @@ export function CreateMarketForm({ onSubmit }: CreateMarketFormProps): JSX.Eleme
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="scheduledAt">Fight Date / Time</Label>
-            <Field id="scheduledAt" type="datetime-local" value={formData.scheduledAt} error={errors.scheduledAt} placeholder="" onChange={(v) => set("scheduledAt", v)} />
+            <Field id="scheduledAt" type="datetime-local" value={formData.scheduledAt} error={touched.scheduledAt ? errors.scheduledAt : undefined} placeholder="" onChange={(v) => set("scheduledAt", v)} />
           </div>
           <div>
             <Label htmlFor="bettingEndsAt">Betting Closes At</Label>
-            <Field id="bettingEndsAt" type="datetime-local" value={formData.bettingEndsAt} error={errors.bettingEndsAt} placeholder="" onChange={(v) => set("bettingEndsAt", v)} />
+            <Field id="bettingEndsAt" type="datetime-local" value={formData.bettingEndsAt} error={touched.bettingEndsAt ? errors.bettingEndsAt : undefined} placeholder="" onChange={(v) => set("bettingEndsAt", v)} />
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="oracleAddress">Oracle Address</Label>
-            <Field id="oracleAddress" value={formData.oracleAddress} error={errors.oracleAddress} placeholder="G..." onChange={(v) => set("oracleAddress", v)} />
+            <Field id="oracleAddress" value={formData.oracleAddress} error={touched.oracleAddress ? errors.oracleAddress : undefined} placeholder="G..." onChange={(v) => set("oracleAddress", v)} />
           </div>
         </div>
       </fieldset>
 
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || !isValid}
         className="w-full rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-black hover:bg-amber-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         {submitting ? "Creating Market…" : "Create Market"}
