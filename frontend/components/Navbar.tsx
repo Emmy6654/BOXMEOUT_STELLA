@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { useTheme } from "@/hooks/useTheme";
 
 const NAV_LINKS = [
   { href: "/", label: "Markets" },
@@ -10,6 +11,7 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <nav className="bg-gray-900 border-b border-gray-800">
@@ -30,6 +32,15 @@ export function Navbar() {
               </Link>
             </li>
           ))}
+          <li>
+            <button
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              className="w-9 h-9 flex items-center justify-center rounded-md text-gray-300 hover:text-white hover:bg-gray-800"
+            >
+              {theme === "dark" ? "☀️" : "🌙"}
+            </button>
+          </li>
         </ul>
 
         {/* Hamburger — mobile only */}
