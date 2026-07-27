@@ -75,6 +75,35 @@ export interface MarketQueryParams extends MarketFilters {
   limit?: number;
 }
 
+export interface UserPosition {
+  marketId: string;
+  market?: Market;
+  side: BetSide;
+  amount: string;
+  avgOdds: number;
+  open: boolean;
+  placedAt?: string;
+}
+
+export interface MarketBetsFilters {
+  outcome?: Outcome;
+}
+
+export interface CreateMarketMetaInput {
+  txHash: string;
+  fighterAName: string;
+  fighterARecord: string;
+  fighterANationality: string;
+  fighterAWeightClass: string;
+  fighterBName: string;
+  fighterBRecord: string;
+  fighterBNationality: string;
+  fighterBWeightClass: string;
+  scheduledAt: string;
+  bettingEndsAt: string;
+  oracleAddress: string;
+}
+
 // ─── ERROR ────────────────────────────────────────────────────────────────────
 
 export class ApiError extends Error {
@@ -88,9 +117,10 @@ export class ApiError extends Error {
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-async function apiFetch<T>(path: string): Promise<T> {
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
+    ...options,
   });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
@@ -137,10 +167,11 @@ export async function fetchMarketStats(market_id: string): Promise<MarketStats> 
 
 /**
  * GET /api/markets/:id/bets
- * Fetches all bets for a market.
+ * Fetches all bets for a market, optionally filtered by outcome.
  */
-export async function fetchMarketBets(market_id: string): Promise<Bet[]> {
-  return apiFetch<Bet[]>(`/api/markets/${market_id}/bets`);
+export async function fetchMarketBets(market_id: string, filters?: MarketBetsFilters): Promise<Bet[]> {
+  const qs = toQueryString(filters as Record<string, string | number | undefined> ?? {});
+  return apiFetch<Bet[]>(`/api/markets/${market_id}/bets${qs}`);
 }
 
 /**
@@ -180,4 +211,23 @@ export async function fetchPayoutEstimate(
  */
 export async function fetchOddsHistory(market_id: string): Promise<OddsSnapshot[]> {
   return apiFetch<OddsSnapshot[]>(`/api/markets/${market_id}/odds-history`);
+}
+
+/**
+ * GET /api/users/:address/positions
+ * Fetches user positions for a wallet address.
+ */
+export async function fetchUserPositions(address: string): Promise<UserPosition[]> {
+  return apiFetch<UserPosition[]>(`/api/users/${address}/positions`);
+}
+
+/**
+ * POST /api/markets
+ * Submits created market metadata to the backend for reconciliation.
+ */
+export async function createMarketMeta(data: CreateMarketMetaInput): Promise<{ success: boolean; marketId?: string }> {
+  return apiFetch<{ success: boolean; marketId?: string }>(`/api/markets`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
