@@ -18,11 +18,14 @@ export interface UsePlaceBetResult {
 export function usePlaceBet(market_id: string): UsePlaceBetResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const { address, signTransaction } = useWallet();
+  const { address, signTransaction, isNetworkMismatched } = useWallet();
 
   const placeBet = async (side: BetSide, amount: bigint): Promise<Bet> => {
     if (!address) {
       throw new Error("Wallet not connected");
+    }
+    if (isNetworkMismatched) {
+      throw new Error("Wallet is connected to the wrong network");
     }
 
     setIsLoading(true);
