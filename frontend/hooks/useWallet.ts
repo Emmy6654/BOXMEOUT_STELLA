@@ -93,6 +93,22 @@ export function useWallet(): UseWalletResult {
         }
       }
 
+      // Check which network the wallet is on
+      const netResult: NetworkResult = await getNetwork();
+      if ("error" in netResult) {
+        setWalletNotInstalled(true);
+        return;
+      }
+
+      const detectedNetwork = netResult.network.toUpperCase();
+      setNetworkName(detectedNetwork);
+
+      if (detectedNetwork !== EXPECTED_NETWORK.toUpperCase()) {
+        setIsWrongNetwork(true);
+      } else {
+        setIsWrongNetwork(false);
+      }
+
       const pkResult: PublicKeyResult = await getPublicKey();
       if ("error" in pkResult) {
         setState({ walletNotInstalled: true });
