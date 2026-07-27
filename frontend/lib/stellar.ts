@@ -1,3 +1,29 @@
+import {
+  Contract,
+  Operation,
+  SorobanRpc,
+  TransactionBuilder,
+  Timeout,
+  nativeToScVal,
+  addressToScVal,
+  scValToNative,
+  Transaction,
+} from "@stellar/stellar-sdk";
+
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+
+/**
+ * The Stellar network this app is configured to operate against.
+ * Wallet network mismatches are detected by comparing against this passphrase.
+ */
+export const NETWORK_PASSPHRASE =
+  process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ?? "Test SDF Network ; September 2015";
+
+export const NETWORK_NAME = process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? "TESTNET";
+
+export const SOROBAN_RPC_URL =
+  process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? "https://soroban-testnet.stellar.org";
+
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
 export interface SorobanInvokeParams {
@@ -23,9 +49,7 @@ export interface TransactionResult {
 export async function buildSorobanInvocation(
   params: SorobanInvokeParams
 ): Promise<string> {
-  const { Contract, Operation, SorobanRpc, TransactionBuilder, Timeout } = await import("@stellar/stellar-sdk");
-
-  const server = new SorobanRpc.Server("https://soroban-testnet.stellar.org", {
+  const server = new SorobanRpc.Server(SOROBAN_RPC_URL, {
     allowHttp: true,
   });
 
@@ -33,8 +57,6 @@ export async function buildSorobanInvocation(
     hostFunction: {
       functionName: params.method,
       args: params.args.map((arg) => {
-        const { nativeToScVal, addressToScVal } = await import("@stellar/stellar-sdk");
-
         if (typeof arg === "bigint") return nativeToScVal(arg);
         if (typeof arg === "string") {
           try {
@@ -47,7 +69,7 @@ export async function buildSorobanInvocation(
         if (Array.isArray(arg)) {
           return nativeToScVal(arg);
         }
-        return arg;
+        return arg as any;
       }),
     },
     auth: [],
@@ -55,49 +77,66 @@ export async function buildSorobanInvocation(
 
   const account = await server.getAccount(params.signerAddress);
 
-  const transaction = new TransactionBuilder(params.signerAddress, {
-    networkPassphrase: "Test SDF Network ; September 2015",
+  const transaction = new TransactionBuilder(account, {
+    networkPassphrase: NETWORK_PASSPHRASE,
     fee: "0",
-  })
-    .addOperation(operation)
-    .setTimeout(Timeout.infinite)
-    .build();
+  });
 
-  const simulateResult = await server.simulateTransaction(transaction);
+  transaction.addOperation(operation);
+  transaction.setTimeout(Timeout.INFINITE);
 
-  if (simulateResult.errorResult) {
-    throw new Error(simulateResult.errorResult);
+  const tx = transaction.build();
+
+  const simResult = await server.simulateTransaction(tx);
+
+  if (SorobanRpc.Api.isSimulationSuccess(simResult)) {
+    const fee = simResult.minResourceFee;
+    const preparedTx = SorobanRpc.assembleTransaction(tx, simResult);
+
+    const withFee = new TransactionBuilder(account, {
+      networkPassphrase: NETWORK_PASSPHRASE,
+      fee: fee,
+    });
+
+    withFee.addOperation(preparedTx.operations[0]);
+    withFee.setTimeout(Timeout.INFINITE);
+
+    const finalTx = withFee.build();
+    finalTx.addSignature(params.signerAddress, Buffer.alloc(64).fill(0));
+
+    return finalTx.toXDR();
   }
 
-  if (!simulateResult.transaction.data?.result?.auth?.length) {
-    throw new Error("Transaction auth not simulated");
-  }
-
-  return transaction.toXDR();
+  throw new Error("Transaction simulation failed");
 }
 
 /**
- * Submits a signed XDR transaction to the Stellar network.
- * Polls for confirmation and returns the result once the transaction is in a ledger.
- * Throws a descriptive error on submission failure or timeout.
+ * Submits a signed XDR transaction to Soroban RPC and waits for ledger confirmation.
+ * Returns the TransactionResult containing txHash, ledger, and return value.
  */
 export async function submitTransaction(signedXdr: string): Promise<TransactionResult> {
-  const { SorobanRpc, Transaction } = await import("@stellar/stellar-sdk");
-
-  const server = new SorobanRpc.Server("https://soroban-testnet.stellar.org", {
+  const server = new SorobanRpc.Server(SOROBAN_RPC_URL, {
     allowHttp: true,
   });
 
-  const tx = Transaction.fromXDR(signedXdr, "Test SDF Network ; September 2015");
+  const transaction = TransactionBuilder.fromXDR(
+    signedXdr,
+    NETWORK_PASSPHRASE
+  ) as Transaction;
 
-  const hash = tx.hash();
+  const response = await server.sendTransaction(transaction);
 
+  if (response.status !== "PENDING") {
+    throw new Error(`Transaction submission failed with status: ${response.status}`);
+  }
+
+  const hash = transaction.hash();
   let result = await server.getTransaction(hash);
 
+  const maxAttempts = 10;
   let attempts = 0;
-  const maxAttempts = 60;
 
-  while (result.status === "Pending" || result.status === "NotFound") {
+  while (result.status === "PENDING" || result.status === "NOT_FOUND") {
     attempts++;
     if (attempts > maxAttempts) {
       throw new Error(`Transaction submission timed out after ${maxAttempts} attempts`);
@@ -108,7 +147,7 @@ export async function submitTransaction(signedXdr: string): Promise<TransactionR
     result = await server.getTransaction(hash);
   }
 
-  if (result.status !== "Success") {
+  if (result.status !== "SUCCESS") {
     throw new Error(`Transaction failed with status: ${result.status}`);
   }
 
@@ -124,14 +163,12 @@ export async function submitTransaction(signedXdr: string): Promise<TransactionR
  * Handles i128, Bytes, Address, Vec, Map, and Option types.
  */
 export function decodeScVal(scVal: unknown): unknown {
-  const { scValToNative } = await import("@stellar/stellar-sdk");
-
   if (!scVal) {
     return scVal;
   }
 
   try {
-    return scValToNative(scVal);
+    return scValToNative(scVal as any);
   } catch (error) {
     if (error instanceof Error && error.message.includes("LedgerKey")) {
       return null;

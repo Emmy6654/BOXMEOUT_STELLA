@@ -9,9 +9,6 @@ jest.mock("@/lib/stellar");
 const mockUseWallet = useWallet as jest.Mock;
 const mockBuildSorobanInvocation = stellar.buildSorobanInvocation as jest.Mock;
 const mockSubmitTransaction = stellar.submitTransaction as jest.Mock;
-const mockUseWallet = useWallet as any;
-const mockBuildSorobanInvocation = stellar.buildSorobanInvocation as any;
-const mockSubmitTransaction = stellar.submitTransaction as any;
 
 describe("usePlaceBet", () => {
   const mockAddress = "GADDR1234567890ABCDEF";
@@ -43,6 +40,27 @@ describe("usePlaceBet", () => {
         await result.current.placeBet("FighterA", 100n);
       })
     ).rejects.toThrow("Wallet not connected");
+  });
+
+  it("throws error when wallet network is mismatched", async () => {
+    mockUseWallet.mockReturnValueOnce({
+      address: mockAddress,
+      isConnected: true,
+      isNetworkMismatched: true,
+      connect: jest.fn(),
+      disconnect: jest.fn(),
+      signTransaction: jest.fn(),
+    });
+
+    const { result } = renderHook(() => usePlaceBet("market-1"));
+
+    await expect(
+      act(async () => {
+        await result.current.placeBet("FighterA", 100n);
+      })
+    ).rejects.toThrow("Wallet is connected to the wrong network");
+
+    expect(mockBuildSorobanInvocation).not.toHaveBeenCalled();
   });
 
   it("builds Soroban invocation with correct params", async () => {
