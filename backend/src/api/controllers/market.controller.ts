@@ -217,6 +217,80 @@ export async function resolveDisputeHandler(req: Request, res: Response): Promis
 }
 
 /**
+ * POST /api/admin/markets/:marketId/resolve
+ * Body: { outcome, source }
+ * Admin-protected. Resolves a market by ID and writes an audit log entry.
+ */
+export async function resolveMarketByIdHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const { marketId } = req.params;
+    const { outcome, source } = req.body;
+
+    if (!outcome || !VALID_OUTCOMES.includes(outcome)) {
+      res.status(400).json({
+        error: "Invalid or missing outcome",
+        code: "INVALID_OUTCOME",
+        allowed: VALID_OUTCOMES,
+      });
+      return;
+    }
+
+    if (!source) {
+      res.status(400).json({ error: "Missing source", code: "MISSING_SOURCE" });
+      return;
+    }
+
+    const market = await marketService.resolveMarket(marketId, outcome, source, "admin");
+    res.status(200).json({ market, message: "Market resolved successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to resolve market", code: "INTERNAL_ERROR" });
+  }
+}
+
+/**
+ * POST /api/admin/markets/:marketId/cancel
+ * Body: { reason? }
+ * Admin-protected. Cancels a market and writes an audit log entry.
+ */
+export async function cancelMarketHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const { marketId } = req.params;
+    const { reason } = req.body;
+
+    const market = await marketService.cancelMarket(marketId, "admin", reason);
+    res.status(200).json({ market, message: "Market cancelled" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to cancel market", code: "INTERNAL_ERROR" });
+  }
+}
+
+/**
+ * POST /api/admin/markets/:marketId/dispute-resolve
+ * Body: { overrideOutcome, resolution? }
+ * Admin-protected. Resolves a disputed market with an override and writes an audit log entry.
+ */
+export async function resolveDisputeByIdHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const { marketId } = req.params;
+    const { overrideOutcome, resolution } = req.body;
+
+    if (!overrideOutcome || !VALID_OUTCOMES.includes(overrideOutcome)) {
+      res.status(400).json({
+        error: "Invalid or missing overrideOutcome",
+        code: "INVALID_OUTCOME",
+        allowed: VALID_OUTCOMES,
+      });
+      return;
+    }
+
+    const market = await marketService.resolveMarketDispute(marketId, overrideOutcome, "admin", resolution);
+    res.status(200).json({ market, message: "Dispute resolved" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to resolve dispute", code: "INTERNAL_ERROR" });
+  }
+}
+
+/**
  * GET /api/admin/markets/pending
  */
 export async function getPendingResolutionsHandler(req: Request, res: Response): Promise<void> {
